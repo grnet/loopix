@@ -18,7 +18,6 @@ with open('config.json') as infile:
 MAX_RETRIEVE = 500
 
 
-
 def makeSphinxPacket(params, exp_delay, receiver, path, message,
                      dropFlag=False):
     path.append(receiver)
@@ -239,8 +238,6 @@ class LoopixProvider(LoopixMixNode):
             return "STORE", [new_message, next_name]
         else:
             return "RELAY", [delay, new_message, next_addr]
-
-
 
 
 setup_mixes = []
