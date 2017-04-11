@@ -138,12 +138,6 @@ class LoopixClient(object):
         next_addr = (self.provider.host, self.provider.port)
         return packed_message, next_addr
 
-    def get_buffered_message(self):
-        while True:
-            interval = sf.sampleFromExponential(self.EXP_PARAMS_PAYLOAD)
-            time.sleep(interval)
-            yield self.next_message()
-
     def decrypt_message(self, message):
         (header, body) = message
         peeledData = sphinx_process(self.params, self.privk, header, body)
