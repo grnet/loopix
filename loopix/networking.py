@@ -1,5 +1,8 @@
 import datetime
 from Queue import PriorityQueue
+from core import LoopixClient, LoopixMixNode, LoopixProvider, generate_all
+import supportFunctions as sf
+import time
 
 def schedule(delay):
     return datetime.datetime.now() + datetime.timedelta(delay)
@@ -38,3 +41,46 @@ class ProviderHandler(MixNodeHandler):
         if data[:8] == "PULL_MSG":
             return self.provider.get_user_messages(data[8:])
         return self.provider.process_message(data)
+
+
+class ClientHandler(object):
+    def __init__(self, client):
+        self.client = client
+        self.priority_queue = PriorityQueue()
+
+
+    def process_message(self, message):
+        received_message = self.client.process_message(message)
+
+    def send_loop_message(self):
+        while True:
+            interval = sf.sampleFromExponential(self.client.EXP_PARAMS_LOOPS)
+            time.sleep(interval)
+            loop_message, next_addr = self.client.create_loop_message()
+            enqueue(self.priority_queue, 0, (loop_message, next_addr))
+
+
+    def send_drop_message(self):
+        while True:
+            interval = sf.sampleFromExponential(self.client.EXP_PARAMS_COVER)
+            time.sleep(interval)
+            random_client = self.client.selectRandomClient()
+            drop_message, next_addr = self.client.create_drop_message(random_client)
+            enqueue(self.priority_queue, 0, (drop_message, next_addr))
+
+
+    def send_pull_request(self):
+        while True:
+            print "PULL"
+            interval = 10
+            time.sleep(interval)
+            pull_message, next_addr = "PULL", (self.client.provider.host, self.client.provider.port)
+            enqueue(self.priority_queue, 0, (pull_message, next_addr))
+
+
+
+env = generate_all()
+client_core = env.client_objects['User0']
+
+client_hanlder = ClientHandler(client_core)
+

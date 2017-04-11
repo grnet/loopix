@@ -103,22 +103,29 @@ class LoopixClient(object):
     def selectRandomClient(self):
         return random.choice(self.known_clients.values())
 
-    def create_drop_message(self, mixers, random_client):
+    def create_drop_message(self, random_client):
         randomMessage = sf.generateRandomNoise(self.NOISE_LENGTH)
         random_provider = random_client.provider
-        path = [self.provider] + mixers + [random_provider]
+
+        mixes = takePathSequence(self.mixnodes.values())
+        path = [self.provider] + mixes + [random_provider]
         (header, body) = makeSphinxPacket(
             self.params, self.EXP_PARAMS_DELAY,
             random_client, path, randomMessage, dropFlag=True)
-        return petlib.pack.encode((header, body))
+        drop_message = petlib.pack.encode((header, body))
+        next_addr = (self.provider.host, self.provider.port)
+        return (drop_message, next_addr)
 
-    def create_loop_message(self, mixers, timestamp):
-        path = [self.provider] + mixers + [self.provider]
+    def create_loop_message(self):
+        mixes = takePathSequence(self.mixnodes.values())
+        path = [self.provider] + mixes + [self.provider]
         heartMsg = sf.generateRandomNoise(self.NOISE_LENGTH)
         (header, body) = makeSphinxPacket(
             self.params, self.EXP_PARAMS_DELAY,
-            self, path, 'HT' + heartMsg + str(timestamp), dropFlag=False)
-        return petlib.pack.encode((header, body))
+            self, path, 'HT' + heartMsg, dropFlag=False)
+        loop_message = petlib.pack.encode((header, body))
+        next_addr = (self.provider.host, self.provider.port)
+        return (loop_message, next_addr)
 
     def next_message(self, mixList):
         if len(self.buffer) > 0:
@@ -349,7 +356,7 @@ def check_loop_message(test_client, env):
     pub_mix_path = takePathSequence(env.public_mixnodes.values())
     process_path = [test_provider] + env.mixnode_objects.values() + [test_provider]
 
-    loop_message = test_client.create_loop_message(pub_mix_path, time.time())
+    loop_message, next_addr = test_client.create_loop_message()
 
     print test_client.provider
     print [e.name for e in process_path]
@@ -368,7 +375,7 @@ def check_drop_message(test_client, env):
     test_provider = get_clients_provider(test_client, env)
     pub_mix_path = takePathSequence(env.public_mixnodes.values())
     random_client = test_client.selectRandomClient()
-    drop_message = test_client.create_drop_message(pub_mix_path, random_client)
+    drop_message, next_addr = test_client.create_drop_message(random_client)
     rand_prov_obj = env.provider_objects[random_client.provider.name]
     process_path = [test_provider] + env.mixnode_objects.values() + [rand_prov_obj]
     message = drop_message
