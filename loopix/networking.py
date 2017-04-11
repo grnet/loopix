@@ -71,11 +71,17 @@ class ClientHandler(object):
 
     def send_pull_request(self):
         while True:
-            print "PULL"
             interval = 10
             time.sleep(interval)
             pull_message, next_addr = "PULL", (self.client.provider.host, self.client.provider.port)
             enqueue(self.priority_queue, 0, (pull_message, next_addr))
+
+    def send_real_message(self):
+        while True:
+            interval = sf.sampleFromExponential(self.client.EXP_PARAMS_PAYLOAD)
+            time.sleep(interval)
+            self.client.next_message()
+
 
 
 

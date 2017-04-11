@@ -127,11 +127,12 @@ class LoopixClient(object):
         next_addr = (self.provider.host, self.provider.port)
         return (loop_message, next_addr)
 
-    def next_message(self, mixList):
+    def next_message(self):
         if len(self.buffer) > 0:
             return self.buffer.pop(0)
         else:
-            return self.create_drop_message(mixList)
+            random_client = self.selectRandomClient()
+            return self.create_drop_message(random_client)
 
     def get_buffered_message(self):
         while True:
