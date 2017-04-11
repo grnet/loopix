@@ -179,7 +179,7 @@ class LoopixMixNode(object):
     def handle_relay(self, header, body, meta_info):
         next_addr, dropFlag, delay, next_name = meta_info
         new_message = petlib.pack.encode((header, body))
-        return "RELAY", delay, new_message, next_addr
+        return "RELAY", [delay, new_message, next_addr]
 
     def process_message(self, data):
         peeledData = self.process_sphinx_packet(data)
@@ -195,7 +195,7 @@ class LoopixMixNode(object):
             if dest[-1] == self.name:
                 if message.startswith('HT'):
                     print "[%s] > Heartbeat looped pack" % self.name
-                    return "DEST", message
+                    return "DEST", [message]
             else:
                 raise Exception("Destionation did not match")
         else:
@@ -232,13 +232,13 @@ class LoopixProvider(LoopixMixNode):
         next_addr, dropFlag, delay, next_name = meta_info
         if dropFlag:
             print "[%s] > Drop message." % self.name
-            return "DROP", None
+            return "DROP", []
         else:
             new_message = petlib.pack.encode((header, body))
             if next_name in self.clientList:
-                return "STORE", new_message, next_name
+                return "STORE", [new_message, next_name]
             else:
-                return "RELAY", delay, new_message, next_addr
+                return "RELAY", [delay, new_message, next_addr]
 
 
 
@@ -316,7 +316,11 @@ loop_message = test_client.create_loop_message(pub_mix_path, time.time())
 
 message = loop_message
 for entity in process_path:
-    flag, delay, message, new_addr = entity.process_message(petlib.pack.decode(message))
+    flag, lst = entity.process_message(petlib.pack.decode(message))
+    print flag
+    if flag == "RELAY":
+        message = lst[1]
+
 
 test_client.process_message(message)
 
