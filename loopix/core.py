@@ -2,6 +2,7 @@ import json
 import time
 import petlib
 import random
+from collections import OrderedDict
 from sphinxmix.SphinxClient import Nenc, create_forward_message, PFdecode, \
     Relay_flag, Dest_flag, receive_forward
 from sphinxmix.SphinxParams import SphinxParams
@@ -30,15 +31,15 @@ def makeSphinxPacket(params, exp_delay, receiver, path, message,
         else:
             delay = sf.sampleFromExponential((exp_delay, None))
         drop = dropFlag and i == path_length - 1
-        nodes_routing.append(
-                Nenc([(node.host, node.port), drop, delay, node.name]))
+        print node.host, node.port, drop, delay, node.name
+        entry = Nenc([(node.host, node.port), drop, delay, node.name])
+        nodes_routing.append(entry)
 
     # Destination of the message
     dest = (receiver.host, receiver.port, receiver.name)
     header, body = create_forward_message(
         params, nodes_routing, keys_nodes, dest, message)
     return (header, body)
-
 
 
 class LoopixClient(object):
@@ -63,16 +64,16 @@ class LoopixClient(object):
         self.params = SphinxParams(header_len=1024)
         self.buffer = []
 
-    def selectRandomProvider(self):
-        return random.choice(self.providers)
+    def selectRandomClient(self):
+        return random.choice(self.clients)
 
-    def create_drop_message(self, mixers):
-        randomProvider = self.selectRandomProvider()
+    def create_drop_message(self, mixers, random_client):
         randomMessage = sf.generateRandomNoise(self.NOISE_LENGTH)
-        path = [self.provider] + mixers
+        random_provider = random_client.provider
+        path = [self.provider] + mixers + [random_provider]
         (header, body) = makeSphinxPacket(
             self.params, self.EXP_PARAMS_DELAY,
-            randomProvider, path, randomMessage, dropFlag=True)
+            random_client, path, randomMessage, dropFlag=True)
         return petlib.pack.encode((header, body))
 
     def create_loop_message(self, mixers, timestamp):
@@ -186,18 +187,19 @@ class LoopixMixNode(object):
         (tag, info, (header, body)) = peeledData
         # routing_flag, meta_info = PFdecode(self.params, info)
         routing = PFdecode(self.params, info)
+        print routing
+        routing_flag, meta_info = routing
+        next_addr, dropFlag, delay, next_name = meta_info
         if routing[0] == Relay_flag:
-            routing_flag, meta_info = routing
             return self.handle_relay(header, body, meta_info)
         elif routing[0] == Dest_flag:
             dest, message = receive_forward(self.params, body)
             print "[%s] > Message received" % self.name
-            if dest[-1] == self.name:
-                if message.startswith('HT'):
-                    print "[%s] > Heartbeat looped pack" % self.name
-                    return "DEST", [message]
-            else:
+            if dest[-1] != self.name:
                 raise Exception("Destionation did not match")
+            if message.startswith('HT'):
+                print "[%s] > Heartbeat looped pack" % self.name
+                return "DEST", [message]
         else:
             print 'Flag not recognized'
 
@@ -231,14 +233,12 @@ class LoopixProvider(LoopixMixNode):
     def handle_relay(self, header, body, meta_info):
         next_addr, dropFlag, delay, next_name = meta_info
         if dropFlag:
-            print "[%s] > Drop message." % self.name
             return "DROP", []
+        new_message = petlib.pack.encode((header, body))
+        if next_name in self.clientList:
+            return "STORE", [new_message, next_name]
         else:
-            new_message = petlib.pack.encode((header, body))
-            if next_name in self.clientList:
-                return "STORE", [new_message, next_name]
-            else:
-                return "RELAY", [delay, new_message, next_addr]
+            return "RELAY", [delay, new_message, next_addr]
 
 
 
@@ -273,59 +273,67 @@ for i in range(3):
 
 
 
-loopix_clients = []
-loopix_mixnodes = []
-loopix_providers = []
+loopix_clients = OrderedDict()
+loopix_mixnodes = OrderedDict()
+loopix_providers = OrderedDict()
 
 for mix in setup_mixes:
     mix_pubdata, mix_privk = mix
     mix = LoopixMixNode(mix_pubdata.host, mix_pubdata.port, mix_pubdata.name, mix_privk, mix_pubdata.pubk, mix_pubdata.group)
-    loopix_mixnodes.append(mix)
+    loopix_mixnodes[mix.name] = mix
 
 for p in setup_providers:
     p_pubdata, p_privk = p
     provider = LoopixProvider(p_pubdata.host, p_pubdata.port, p_pubdata.name, p_privk, p_pubdata.pubk)
-    loopix_providers.append(provider)
+    loopix_providers[provider.name] = provider
 
  
 for u in setup_clients:
     u_pubdata, u_privk = u
     user = LoopixClient(u_pubdata.host, u_pubdata.port, u_pubdata.name, u_pubdata.provider, u_privk, u_pubdata.pubk)
-    loopix_clients.append(user)
+    loopix_clients[user.name] = user
 
 
-mixnodes = (loopix_mixnodes, [x[0] for x in setup_mixes])
-providers = (loopix_providers, [x[0] for x in setup_providers])
-clients = (loopix_clients, [x[0] for x in setup_clients])
+public_mixnodes = [x[0] for x in setup_mixes]
+public_providers = [x[0] for x in setup_providers]
+public_clients = [x[0] for x in setup_clients]
 
 def get_clients_provider(client):
-    for p in providers[0]:
-        if client.provider.name == p.name:
-            return p
-    return None
+    return loopix_providers[client.provider.name]
 
-test_client = random.choice(clients[0])
+test_client = random.choice(loopix_clients.values())
 test_provider = get_clients_provider(test_client)
-test_provider.clientList = clients[1]
+test_provider.clientList = public_clients
 
-pub_mix_path = test_client.takePathSequence(mixnodes[1])
-process_path = [test_provider] + mixnodes[0] + [test_provider]
+pub_mix_path = test_client.takePathSequence(public_mixnodes)
+process_path = [test_provider] + loopix_mixnodes.values() + [test_provider]
 #-----------------------------CHECK IF LOOPS WORK CORRECT-------------------------
+print "CREATE LOOP MESSAGE"
 loop_message = test_client.create_loop_message(pub_mix_path, time.time())
 
-
+print test_client.provider
+print [e.name for e in process_path]
 message = loop_message
 for entity in process_path:
     flag, lst = entity.process_message(petlib.pack.decode(message))
-    print flag
+    print "Flag:", flag
     if flag == "RELAY":
         message = lst[1]
-
 
 test_client.process_message(message)
 
 #-----------------------------CHECK IF DROP MESSAGE WORKS CORRECT-------------------------
-test_client.providers = providers[1]
-drop_message = test_client.create_drop_message(pub_mix_path)
- 
+print "CREATE DROP MESSAGE"
+test_client.providers = public_providers
+test_client.clients = public_clients
 
+random_client = test_client.selectRandomClient()
+drop_message = test_client.create_drop_message(pub_mix_path, random_client)
+rand_prov_obj = loopix_providers[random_client.provider.name]
+process_path = [test_provider] + loopix_mixnodes.values() + [rand_prov_obj]
+message = drop_message
+for entity in process_path:
+    flag, lst = entity.process_message(petlib.pack.decode(message))
+    print "Flag:", flag
+    if flag == "RELAY":
+        message = lst[1]
