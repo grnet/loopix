@@ -2,6 +2,7 @@ import json
 import time
 import petlib
 import random
+from Queue import Queue
 from collections import OrderedDict, namedtuple
 from sphinxmix.SphinxClient import Nenc, create_forward_message, PFdecode, \
     Relay_flag, Dest_flag, receive_forward
@@ -89,7 +90,7 @@ class LoopixClient(object):
         self.privk = privk
         self.pubk = pubk
         self.params = SphinxParams(header_len=1024)
-        self.buffer = []
+        self.buffer = Queue()
 
     def register_providers(self, providers):
         self.providers = providers
@@ -127,12 +128,15 @@ class LoopixClient(object):
         next_addr = (self.provider.host, self.provider.port)
         return (loop_message, next_addr)
 
-    def next_message(self):
-        if len(self.buffer) > 0:
-            return self.buffer.pop(0)
-        else:
-            random_client = self.selectRandomClient()
-            return self.create_drop_message(random_client)
+    def create_actual_message(self, message, receiver):
+        mixers = takePathSequence(self.mixnodes.values())
+        path = [self.provider] + mixers + [receiver.provider]
+        (header, body) = makeSphinxPacket(
+            self.params, self.EXP_PARAMS_DELAY,
+            receiver, path, message, dropFlag=False)
+        packed_message = petlib.pack.encode((header, body))
+        next_addr = (self.provider.host, self.provider.port)
+        return packed_message, next_addr
 
     def get_buffered_message(self):
         while True:
@@ -234,10 +238,9 @@ class LoopixProvider(LoopixMixNode):
     def __init__(self, *args, **kwargs):
         LoopixMixNode.__init__(self, *args, **kwargs)
         self.storage = {}
-        self.clientList = []
 
-    def register_client_list(self, client_list):
-        self.client_list = client_list
+    def register_clients(self, clients):
+        self.clients = clients
 
     def saveInStorage(self, key, value):
         if key in self.storage:
@@ -258,7 +261,7 @@ class LoopixProvider(LoopixMixNode):
         if dropFlag:
             return "DROP", []
         new_message = petlib.pack.encode((header, body))
-        if next_name in self.clientList:
+        if next_name in self.clients:
             return "STORE", [new_message, next_name]
         else:
             return "RELAY", [delay, new_message, next_addr]
@@ -339,7 +342,7 @@ def generate_all():
     for name, provider in provider_objects.iteritems():
         provider.register_providers(public_providers)
         provider.register_mixnodes(public_mixnodes)
-        provider.register_client_list(public_clients.values())
+        provider.register_clients(public_clients)
 
     return Env(public_mixnodes, mixnode_objects,
                public_providers, provider_objects,
