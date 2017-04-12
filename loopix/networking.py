@@ -36,7 +36,7 @@ def schedule(delay):
 
 def enqueue(queue, delay, data):
     fire_time = schedule(delay)
-    #print "ENQUEUE %s" % (fire_time)
+    print "ENQUEUE WITH DELAY %s" % (delay)
     queue.put((fire_time, data))
 
 

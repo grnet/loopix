@@ -10,7 +10,6 @@ from sphinxmix.SphinxParams import SphinxParams
 from sphinxmix.SphinxNode import sphinx_process
 from format3 import Mix, Provider, User
 
-#from loopix import supportFunctions as sf
 import supportFunctions as sf
 
 with open('config.json') as infile:
