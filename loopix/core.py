@@ -138,7 +138,6 @@ class LoopixClient(object):
         try:
             message = petlib.pack.decode(data)
             msg = self.decrypt_message(message)
-            print msg[:10]
             if msg.startswith("HT"):
                 print "[%s] > HEARTBEAT RECEIVED BACK" % self.name
             else:

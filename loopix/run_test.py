@@ -8,6 +8,8 @@ from networking import MixNodeHandler, ProviderHandler, ClientHandler, \
 import petlib
 from Queue import Queue
 from threading import Thread
+import time
+import supportFunctions as sf
 
 
 def generate_key_pair():
@@ -152,7 +154,7 @@ def demo():
         launch(phandler.send_loop_messages)
         launch(process_queue, args=(phandler, INBOXES))
 
-    # make_fake_real_traffic(env, handlers.client_handlers.values())
+    launch(make_fake_real_traffic, args=(env, handlers.client_handlers.values()))
 
     for chandler in [handlers.client_handlers.values()[0]]:
         addr = chandler.client.host, chandler.client.port
@@ -167,13 +169,15 @@ def demo():
 
 
 def make_fake_real_traffic(env, client_handlers):
-    for ch in client_handlers:
-        message = "Hellow World from %s" % ch.client.name
-        random_recipient = ch.client.selectRandomClient()
+    while True:
+        for ch in client_handlers:
+            message = sf.generateRandomNoise(500)
+            random_recipient = ch.client.selectRandomClient()
         
-        packet = ch.client.create_actual_message(message, random_recipient)
-        ch.buffer_queue.put(packet)
-        print "PUTTED INTO BUFFER"
+            packet = ch.client.create_actual_message(message, random_recipient)
+            ch.buffer_queue.put(packet)
+            print "PUTTED INTO BUFFER"
+        time.sleep(20)
 
 def check_loop_message(client_handler, env):
     print "CREATE LOOP MESSAGE"
