@@ -151,7 +151,7 @@ class LoopixClient(object):
 
 class LoopixMixNode(object):
     PATH_LENGTH = 3
-    EXP_PARAMS_DELAY = (float(_PARAMS["parametersMixnodes"]["EXP_PARAMS_DELAY"]), None)
+    EXP_PARAMS_DELAY = float(_PARAMS["parametersMixnodes"]["EXP_PARAMS_DELAY"])
     NOISE_LENGTH = float(_PARAMS["parametersMixnodes"]["NOISE_LENGTH"])
 
     def __init__(self, host, port, name, privk, pubk, group=None):
@@ -164,6 +164,8 @@ class LoopixMixNode(object):
         self.group = group
 
     def create_loop_message(self):
+        print "CREATING MIX LOOP"
+        print self.EXP_PARAMS_DELAY
         path = takeMixNodesSequence(self.mixnodes.values())
         heartMsg = sf.generateRandomNoise(self.NOISE_LENGTH)
         header, body = makeSphinxPacket(
