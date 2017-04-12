@@ -83,8 +83,6 @@ class LoopixClient(object):
         self.privk = privk
         self.pubk = pubk
         self.params = SphinxParams(header_len=1024)
-        self.buffer = Queue()
-
 
     def selectRandomClient(self):
         return random.choice(self.known_clients.values())
@@ -185,7 +183,8 @@ class LoopixMixNode(object):
         return "RELAY", [delay, new_message, next_addr]
 
     def process_message(self, data):
-        peeledData = self.process_sphinx_packet(data)
+        message = petlib.pack.decode(data)
+        peeledData = self.process_sphinx_packet(message)
         (tag, info, (header, body)) = peeledData
         # routing_flag, meta_info = PFdecode(self.params, info)
         routing = PFdecode(self.params, info)

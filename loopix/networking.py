@@ -1,5 +1,5 @@
 import datetime
-from Queue import PriorityQueue, Queue
+from Queue import PriorityQueue, Queue, Empty
 from core import LoopixClient, LoopixMixNode, LoopixProvider
 import supportFunctions as sf
 import time
@@ -14,7 +14,7 @@ def schedule(delay):
 
 def enqueue(queue, delay, data):
     fire_time = schedule(delay)
-    print "ENQUEUE %s %s" % (fire_time, data)
+    print "ENQUEUE %s" % (fire_time)
     queue.put((fire_time, data))
 
 
@@ -22,12 +22,16 @@ def process_queue(event_queue, inboxes):
     pqueue = PriorityQueue()
     timeout = 0
     while True:
-        element = event_queue.get(block=True, timeout=timeout)
-        handle_element(pqueue, element, inboxes)
+        try:
+            element = event_queue.get(block=True, timeout=timeout)
+            handle_element(pqueue, element, inboxes)
+        except Empty:
+            pass
         while True:
-            if pqueue.empty():
+            try:
+                elem = pqueue.get(block=False)
+            except Empty:
                 break
-            elem = pqueue.get()
             delta_secs = handle_element(pqueue, elem, inboxes)
             if delta_secs > 0:
                 timeout = delta_secs
@@ -142,7 +146,7 @@ class ClientHandler(object):
         while True:
             message = inbox.get()
             processed = self.process_message(message)
-            print processed
+            print "User %s: READ MAIL" % self.client.name
 
     def process_message(self, message):
         return self.client.process_message(message)
@@ -180,8 +184,8 @@ class ClientHandler(object):
         while True:
             interval = sf.sampleFromExponential(self.EXP_PARAMS_PAYLOAD)
             time.sleep(interval)
-            data = self.client.next_message()
-            enqueue(self.priority_queue, 0, data)
+            data = self.next_message()
+            enqueue(self.queue, 0, data)
 
     def prepare_actual_message(self, message, receiver):
         data = self.client.create_actual_message(message, receiver)

@@ -170,7 +170,7 @@ def check_loop_message(client_handler, env):
     print [e.name for e in process_path]
     message = loop_message
     for entity in process_path:
-        flag, lst = entity.process_message(petlib.pack.decode(message))
+        flag, lst = entity.process_message(message)
         print "Flag:", flag
         if flag == "RELAY":
             message = lst[1]
@@ -195,7 +195,7 @@ def check_drop_message(client_handler, env):
     process_path = [test_provider] + env.mixnode_objects.values() + [rand_prov_obj]
     message = drop_message
     for entity in process_path:
-        flag, lst = entity.process_message(petlib.pack.decode(message))
+        flag, lst = entity.process_message(message)
         print "Flag:", flag
         if flag == "RELAY":
             message = lst[1]    
