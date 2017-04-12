@@ -152,7 +152,9 @@ def demo():
         launch(phandler.send_loop_messages)
         launch(process_queue, args=(phandler, INBOXES))
 
-    for chandler in handlers.client_handlers.values():
+    # make_fake_real_traffic(env, handlers.client_handlers.values())
+
+    for chandler in [handlers.client_handlers.values()[0]]:
         addr = chandler.client.host, chandler.client.port
         with INBOXES.lock() as d:
             inbox = d[addr]
@@ -163,6 +165,15 @@ def demo():
         launch(chandler.make_pull_request_stream)
         launch(process_queue, args=(chandler, INBOXES))
 
+
+def make_fake_real_traffic(env, client_handlers):
+    for ch in client_handlers:
+        message = "Hellow World from %s" % ch.client.name
+        random_recipient = ch.client.selectRandomClient()
+        
+        packet = ch.client.create_actual_message(message, random_recipient)
+        ch.buffer_queue.put(packet)
+        print "PUTTED INTO BUFFER"
 
 def check_loop_message(client_handler, env):
     print "CREATE LOOP MESSAGE"
@@ -216,7 +227,7 @@ def test():
     check_drop_message(test_client, env)
 
 if __name__ == "__main__":
-    test()
+    demo()
 
 
 

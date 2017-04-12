@@ -16,8 +16,6 @@ import supportFunctions as sf
 with open('config.json') as infile:
     _PARAMS = json.load(infile)
 
-MAX_RETRIEVE = 500
-
 
 def makeSphinxPacket(params, exp_delay, receiver, path, message,
                      dropFlag=False):
@@ -73,6 +71,7 @@ def takeMixNodesSequence(mixnet):
 class LoopixClient(object):
     PATH_LENGTH = int(_PARAMS["parametersClients"]["PATH_LENGTH"])
     EXP_PARAMS_DELAY = float(_PARAMS["parametersClients"]["EXP_PARAMS_DELAY"])
+    EXP_PARAMS_DELAY = 0.0001
     NOISE_LENGTH = float(_PARAMS["parametersClients"]["NOISE_LENGTH"])
 
     def __init__(self, host, port, name, provider, privk, pubk):
@@ -139,10 +138,11 @@ class LoopixClient(object):
         try:
             message = petlib.pack.decode(data)
             msg = self.decrypt_message(message)
+            print msg[:10]
             if msg.startswith("HT"):
-                print "[%s] > Heartbeat looped back" % self.name
+                print "[%s] > HEARTBEAT RECEIVED BACK" % self.name
             else:
-                print "[%s] > New message unpacked." % (self.name)
+                print "[%s] > NEW MESSAGE RECEIVED" % (self.name)
             return msg
         except Exception, e:
             print "[%s] > ERROR: Message reading error: %s" % (self.name, str(e))
@@ -163,7 +163,6 @@ class LoopixMixNode(object):
         self.group = group
 
     def create_loop_message(self):
-        print "CREATING MIX LOOP"
         path = takeMixNodesSequence(self.mixnodes.values())
         heartMsg = sf.generateRandomNoise(self.NOISE_LENGTH)
         header, body = makeSphinxPacket(
@@ -188,7 +187,6 @@ class LoopixMixNode(object):
         (tag, info, (header, body)) = peeledData
         # routing_flag, meta_info = PFdecode(self.params, info)
         routing = PFdecode(self.params, info)
-        #print "ROUTING", routing
         if routing[0] == Relay_flag:
             routing_flag, meta_info = routing
             next_addr, dropFlag, delay, next_name = meta_info

@@ -206,7 +206,7 @@ class MixNode(DatagramProtocol):
 					print "ERROR during message processing", str(e)
 			elif routing[0] == Dest_flag:
 				dest, message = receive_forward(self.params, body)
-				print "[%s] > Message received" % self.name
+				# print "[%s] > Message received" % self.name
 				if dest[-1] == self.name:
 					if message.startswith('TAG'):
 						self.measureLatency(message)

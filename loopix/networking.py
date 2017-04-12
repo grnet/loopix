@@ -6,6 +6,7 @@ import time
 import json
 import threading
 
+MAX_RETRIEVE = 500
 
 with open('config.json') as infile:
     _PARAMS = json.load(infile)
@@ -129,6 +130,8 @@ class ProviderHandler(MixNodeHandler):
             recipient = self.provider.clients[next_name]
             new_addr = recipient.host, recipient.port
             self.saveInStorage(next_name, (new_message, new_addr))
+        elif flag == "DROP":
+            print "[%s] > DROPED MESSAGE" % self.name
 
     def saveInStorage(self, key, value):
         with self.storage.lock() as storage:
@@ -147,8 +150,8 @@ class ProviderHandler(MixNodeHandler):
             return []
 
     def process_message(self, data):
-        if data[:8] == "PULL":
-            message_list = self.get_user_messages(data[8:])
+        if data.startswith("PULL"):
+            message_list = self.get_user_messages(data[4:])
             for message in message_list:
                 enqueue(self.queue, 0, message)
         else:
@@ -182,10 +185,8 @@ class ClientHandler(object):
 
     def read_mail(self, inbox):
         while True:
-            print "READING INBOX"
             message = inbox.get()
             processed = self.process_message(message)
-            print "User %s: READ MAIL" % self.client.name
 
     def process_message(self, message):
         return self.client.process_message(message)
@@ -209,7 +210,7 @@ class ClientHandler(object):
         while True:
             interval = 2
             time.sleep(interval)
-            pull_message, next_addr = "PULL", (self.client.provider.host, self.client.provider.port)
+            pull_message, next_addr = "PULL"+self.client.name, (self.client.provider.host, self.client.provider.port)
             enqueue(self.queue, 0, (pull_message, next_addr))
 
     def next_message(self):
