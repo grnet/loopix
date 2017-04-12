@@ -71,6 +71,7 @@ class ProviderHandler(MixNodeHandler):
     def __init__(self, provider):
         MixNodeHandler.__init__(self, provider)
         self.provider = provider
+        self.storage = {}
 
     def register_clients(self, clients):
         self.provider.clients = clients
@@ -84,7 +85,13 @@ class ProviderHandler(MixNodeHandler):
             new_message, next_name = data
             recipient = self.provider.clients[name]
             new_addr = recipient.host, recipient.port
-            self.provider.saveInStorage(name, (new_message, new_addr))
+            self.saveInStorage(name, (new_message, new_addr))
+
+    def saveInStorage(self, key, value):
+        if key in self.storage:
+            self.storage[key].append(value)
+        else:
+            self.storage[key] = [value]
 
     def handle_package(self, data):
         if data[:8] == "PULL_MSG":

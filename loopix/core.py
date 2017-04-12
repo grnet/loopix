@@ -210,13 +210,6 @@ class LoopixMixNode(object):
 class LoopixProvider(LoopixMixNode):
     def __init__(self, *args, **kwargs):
         LoopixMixNode.__init__(self, *args, **kwargs)
-        self.storage = {}
-
-    def saveInStorage(self, key, value):
-        if key in self.storage:
-            self.storage[key].append(value)
-        else:
-            self.storage[key] = [value]
 
     def get_user_messages(self, name):
         if name in self.storage:
@@ -356,5 +349,5 @@ def test():
     check_drop_message(test_client, env)
 
 
-if __name__ == "__main__":
-    test()
+# if __name__ == "__main__":
+#     test()
