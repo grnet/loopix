@@ -147,7 +147,7 @@ class ProviderHandler(MixNodeHandler):
             return []
 
     def process_message(self, data):
-        if data[:8] == "PULL_MSG":
+        if data[:8] == "PULL":
             message_list = self.get_user_messages(data[8:])
             for message in message_list:
                 enqueue(self.queue, 0, message)
