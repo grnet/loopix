@@ -1,6 +1,6 @@
 import datetime
 from Queue import PriorityQueue, Queue
-from core import LoopixClient, LoopixMixNode, LoopixProvider, generate_all_core
+from core import LoopixClient, LoopixMixNode, LoopixProvider
 import supportFunctions as sf
 import time
 import json
@@ -180,49 +180,9 @@ class ClientHandler(object):
         self.client.buffer.put(data)
 
 
-env = generate_all_core()
 
-def generate_client_handlers(env):
-    client_handlers = []
-    for name, client in env.client_objects.iteritems():
-        client_handler = ClientHandler(client)
-        client_handler.register_providers(env.public_providers)
-        client_handler.register_mixnodes(env.public_mixnodes)
-        client_handler.register_known_clients(env.public_clients)
-        client_handlers.append(client_handler)
-    return client_handlers
-
-def generate_mixnode_handlers(env):
-    mixnode_handlers = []
-    for name, mixnode in env.mixnode_objects.iteritems():
-        mixnode_handler = MixNodeHandler(mixnode)
-        mixnode_handler.register_providers(env.public_providers)
-        mixnode_handler.register_mixnodes(env.public_mixnodes)
-        mixnode_handlers.append(mixnode_handler)
-    return mixnode_handlers
-
-def generate_provider_handlers(env):
-    provider_handlers = []
-    for name, provider in env.provider_objects.iteritems():
-        provider_handler = ProviderHandler(provider)
-        provider_handler.register_providers(env.public_providers)
-        provider_handler.register_mixnodes(env.public_mixnodes)
-        provider_handler.register_clients(env.public_clients)
-        provider_handlers.append(provider_handler)
-    return provider_handlers
-
-def generate_all_handlers(env):
-    mixnode_handlers = generate_mixnode_handlers(env)
-    provider_handlers = generate_provider_handlers(env)
-    client_handlers = generate_client_handlers(env)
-    return mixnode_handlers, provider_handlers, client_handlers
-
-
-mixnode_handlers, provider_handlers, client_handlers = generate_all_handlers(env)
-
-
-client_handler = client_handlers[0]
-#client_handler.make_loop_stream()
-#client_handler.make_drop_stream()
-#client_handler.make_actual_message_stream()
-client_handler.make_pull_request_stream()
+# client_handler = client_handlers[0]
+# #client_handler.make_loop_stream()
+# #client_handler.make_drop_stream()
+# #client_handler.make_actual_message_stream()
+# client_handler.make_pull_request_stream()
