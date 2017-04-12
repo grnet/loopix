@@ -230,10 +230,3 @@ class ClientHandler(object):
         data = self.client.create_actual_message(message, receiver)
         self.client.buffer_queue.put(data)
 
-
-
-# client_handler = client_handlers[0]
-# #client_handler.make_loop_stream()
-# #client_handler.make_drop_stream()
-# #client_handler.make_actual_message_stream()
-# client_handler.make_pull_request_stream()

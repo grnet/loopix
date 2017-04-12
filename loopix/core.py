@@ -39,32 +39,32 @@ def makeSphinxPacket(params, exp_delay, receiver, path, message,
     return (header, body)
 
 
-def takeMixNodesSequence(mixnet):
-    """ Function takes a random path sequence build of active mixnodes. If the
-    default length of the path is bigger that the number of available mixnodes,
-    then all mixnodes are used as path.
+# def takeMixNodesSequence(mixnet):
+#     """ Function takes a random path sequence build of active mixnodes. If the
+#     default length of the path is bigger that the number of available mixnodes,
+#     then all mixnodes are used as path.
 
-            Args:
-            mixnet (list) - list of active mixnodes,
-    """
-    ENTRY_NODE = 0
-    MIDDLE_NODE = 1
-    EXIT_NODE = 2
+#             Args:
+#             mixnet (list) - list of active mixnodes,
+#     """
+#     ENTRY_NODE = 0
+#     MIDDLE_NODE = 1
+#     EXIT_NODE = 2
 
-    randomPath = []
-    try:
-        entries = [x for x in mixnet if x.group == ENTRY_NODE]
-        middles = [x for x in mixnet if x.group == MIDDLE_NODE]
-        exits = [x for x in mixnet if x.group == EXIT_NODE]
+#     randomPath = []
+#     try:
+#         entries = [x for x in mixnet if x.group == ENTRY_NODE]
+#         middles = [x for x in mixnet if x.group == MIDDLE_NODE]
+#         exits = [x for x in mixnet if x.group == EXIT_NODE]
 
-        entryMix = random.choice(entries)
-        middleMix = random.choice(middles)
-        exitMix = random.choice(exits)
+#         entryMix = random.choice(entries)
+#         middleMix = random.choice(middles)
+#         exitMix = random.choice(exits)
 
-        randomPath = [entryMix, middleMix, exitMix]
-        return randomPath
-    except Exception, e:
-        print "ERROR: During path generation: %s" % str(e)
+#         randomPath = [entryMix, middleMix, exitMix]
+#         return randomPath
+#     except Exception, e:
+#         print "ERROR: During path generation: %s" % str(e)
 
 
 class LoopixClient(object):
@@ -88,7 +88,7 @@ class LoopixClient(object):
         randomMessage = sf.generateRandomNoise(self.NOISE_LENGTH)
         random_provider = random_client.provider
 
-        mixes = takeMixNodesSequence(self.mixnodes.values())
+        mixes = self.takeMixNodesSequence(self.mixnodes.values())
         path = [self.provider] + mixes + [random_provider]
         (header, body) = makeSphinxPacket(
             self.params, self.EXP_PARAMS_DELAY,
@@ -98,7 +98,7 @@ class LoopixClient(object):
         return (drop_message, next_addr)
 
     def create_loop_message(self):
-        mixes = takeMixNodesSequence(self.mixnodes.values())
+        mixes = self.takeMixNodesSequence(self.mixnodes.values())
         path = [self.provider] + mixes + [self.provider]
         heartMsg = sf.generateRandomNoise(self.NOISE_LENGTH)
         
@@ -111,7 +111,7 @@ class LoopixClient(object):
         return (loop_message, next_addr)
 
     def create_actual_message(self, message, receiver):
-        mixers = takeMixNodesSequence(self.mixnodes.values())
+        mixers = self.takeMixNodesSequence(self.mixnodes.values())
         path = [self.provider] + mixers + [receiver.provider]
         (header, body) = makeSphinxPacket(
             self.params, self.EXP_PARAMS_DELAY,
@@ -144,6 +144,35 @@ class LoopixClient(object):
         except Exception, e:
             print "[%s] > ERROR: Message reading error: %s" % (self.name, str(e))
 
+    def takeMixNodesSequence(self, mixnet):
+        """ Function takes a random path sequence build of active mixnodes. If the
+        default length of the path is bigger that the number of available mixnodes,
+        then all mixnodes are used as path.
+
+                Args:
+                mixnet (list) - list of active mixnodes,
+        """
+        ENTRY_NODE = 0
+        MIDDLE_NODE = 1
+        EXIT_NODE = 2
+
+        randomPath = []
+        try:
+            entries = [x for x in mixnet if x.group == ENTRY_NODE]
+            middles = [x for x in mixnet if x.group == MIDDLE_NODE]
+            exits = [x for x in mixnet if x.group == EXIT_NODE]
+
+            entryMix = random.choice(entries)
+            middleMix = random.choice(middles)
+            exitMix = random.choice(exits)
+
+            randomPath = [entryMix, middleMix, exitMix]
+            return randomPath
+        except Exception, e:
+            print "ERROR: During path generation: %s" % str(e)
+
+
+
 
 class LoopixMixNode(object):
     PATH_LENGTH = 3
@@ -160,7 +189,7 @@ class LoopixMixNode(object):
         self.group = group
 
     def create_loop_message(self):
-        path = takeMixNodesSequence(self.mixnodes.values())
+        path = self.takeMixNodesSequence(self.mixnodes.values())
         heartMsg = sf.generateRandomNoise(self.NOISE_LENGTH)
         header, body = makeSphinxPacket(
             self.params, self.EXP_PARAMS_DELAY, self, path, 'HT' + heartMsg)
@@ -197,6 +226,38 @@ class LoopixMixNode(object):
                 return "DEST", [message]
         else:
             print 'Flag not recognized'
+
+    def takeMixNodesSequence(self, mixnet):
+        try:
+            ENTRY_NODE = 0
+            MIDDLE_NODE = 1
+            EXIT_NODE = 2
+
+            randomPath = []
+            entries = [x for x in mixnet if x.group == ENTRY_NODE]
+            middles = [x for x in mixnet if x.group == MIDDLE_NODE]
+            exits = [x for x in mixnet if x.group == EXIT_NODE]
+
+            if self.group == 0:
+                middleMix = random.choice(middles)
+                exitMix = random.choice(exits)
+                randomPath = [middleMix, exitMix, random.choice(self.providers.values())]
+            elif self.group == 1:
+                entryMix = random.choice(entries)
+                exitMix = random.choice(exits)
+                randomPath = [exitMix, random.choice(self.providers.values()), entryMix]
+            elif self.group == 2:
+                entryMix = random.choice(entries)
+                middleMix = random.choice(middles)
+                randomPath = [random.choice(self.providers.values()), entryMix, middleMix]
+            elif self.group == None:
+                entryMix = random.choice(entries)
+                middleMix = random.choice(middles)
+                exitMix = random.choice(exits)
+                randomPath = [entryMix, middleMix, exitMix]
+            return randomPath
+        except Exception, e:
+            print "[%s] > ERROR: During selecting path %s" % (self.name, str(e))
 
 
 

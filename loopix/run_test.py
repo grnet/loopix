@@ -1,7 +1,7 @@
 from sphinxmix.SphinxParams import SphinxParams
 from collections import OrderedDict, namedtuple
 from format3 import Mix, Provider, User
-from core import LoopixMixNode, LoopixProvider, LoopixClient, takeMixNodesSequence
+from core import LoopixMixNode, LoopixProvider, LoopixClient
 import random
 from networking import MixNodeHandler, ProviderHandler, ClientHandler, \
     process_queue, ThreadSafeDict
@@ -182,7 +182,7 @@ def check_loop_message(client_handler, env):
     print "CREATE LOOP MESSAGE"
     test_provider = get_clients_provider(client_handler.client, env)
     
-    pub_mix_path = takeMixNodesSequence(env.public_mixnodes.values())
+    # pub_mix_path = takeMixNodesSequence(env.public_mixnodes.values())
     process_path = [test_provider] + env.mixnode_objects.values() + [test_provider]
 
     loop_message, next_addr = client_handler.client.create_loop_message()
@@ -207,7 +207,7 @@ def get_clients_provider(client, env):
 def check_drop_message(client_handler, env):
     print "CREATE DROP MESSAGE"
     test_provider = get_clients_provider(client_handler.client, env)
-    pub_mix_path = takeMixNodesSequence(env.public_mixnodes.values())
+    # pub_mix_path = takeMixNodesSequence(env.public_mixnodes.values())
     random_client = client_handler.client.selectRandomClient()
 
     drop_message, next_addr = client_handler.client.create_drop_message(random_client)
@@ -231,6 +231,7 @@ def test():
 
 if __name__ == "__main__":
     demo()
+    #test()
 
 
 
