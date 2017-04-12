@@ -3,6 +3,10 @@ from Queue import PriorityQueue, Queue
 from core import LoopixClient, LoopixMixNode, LoopixProvider, generate_all_core
 import supportFunctions as sf
 import time
+import json
+
+with open('config.json') as infile:
+    _PARAMS = json.load(infile)
 
 def schedule(delay):
     return datetime.datetime.now() + datetime.timedelta(delay)
@@ -38,6 +42,8 @@ def handle_element(pqueue, element):
 
 
 class MixNodeHandler(object):
+    EXP_PARAMS_LOOPS = (float(_PARAMS["parametersMixnodes"]["EXP_PARAMS_LOOPS"]), None)
+
     def __init__(self, mixnode):
         self.mixnode = mixnode
         self.priority_queue = PriorityQueue()
@@ -56,7 +62,7 @@ class MixNodeHandler(object):
 
     def send_loop_messages(self):
         while True:
-            interval = sf.sampleFromExponential(self.mixnode.EXP_PARAMS_LOOPS)
+            interval = sf.sampleFromExponential(self.EXP_PARAMS_LOOPS)
             time.sleep(interval)
             enqueue(self.priority_queue, 0, (message, new_addr))
 
@@ -89,6 +95,15 @@ class ProviderHandler(MixNodeHandler):
 
 
 class ClientHandler(object):
+
+    EXP_PARAMS_PAYLOAD = (
+        float(_PARAMS["parametersClients"]["EXP_PARAMS_PAYLOAD"]), None)
+
+    EXP_PARAMS_LOOPS = (
+        float(_PARAMS["parametersClients"]["EXP_PARAMS_LOOPS"]), None)
+    EXP_PARAMS_COVER = (
+        float(_PARAMS["parametersClients"]["EXP_PARAMS_COVER"]), None)
+
     def __init__(self, client):
         self.client = client
         self.priority_queue = PriorityQueue()
@@ -116,14 +131,14 @@ class ClientHandler(object):
 
     def make_loop_stream(self):
         while True:
-            interval = sf.sampleFromExponential(self.client.EXP_PARAMS_LOOPS)
+            interval = sf.sampleFromExponential(self.EXP_PARAMS_LOOPS)
             time.sleep(interval)
             loop_message, next_addr = self.client.create_loop_message()
             enqueue(self.priority_queue, 0, (loop_message, next_addr))
 
     def make_drop_stream(self):
         while True:
-            interval = sf.sampleFromExponential(self.client.EXP_PARAMS_COVER)
+            interval = sf.sampleFromExponential(self.EXP_PARAMS_COVER)
             time.sleep(interval)
             random_client = self.client.selectRandomClient()
             drop_message, next_addr = self.client.create_drop_message(random_client)
@@ -145,7 +160,7 @@ class ClientHandler(object):
 
     def make_actual_message_stream(self):
         while True:
-            interval = sf.sampleFromExponential(self.client.EXP_PARAMS_PAYLOAD)
+            interval = sf.sampleFromExponential(self.EXP_PARAMS_PAYLOAD)
             time.sleep(interval)
             data = self.client.next_message()
             enqueue(self.priority_queue, 0, data)
@@ -196,5 +211,8 @@ def generate_all_handlers(env):
 mixnode_handlers, provider_handlers, client_handlers = generate_all_handlers(env)
 
 
-client_hanlder = client_handlers[0]
-client_hanlder.make_loop_stream()
+client_handler = client_handlers[0]
+#client_handler.make_loop_stream()
+#client_handler.make_drop_stream()
+#client_handler.make_actual_message_stream()
+client_handler.make_pull_request_stream()

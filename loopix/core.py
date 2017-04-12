@@ -72,13 +72,6 @@ def takeMixNodesSequence(mixnet):
 
 class LoopixClient(object):
     PATH_LENGTH = int(_PARAMS["parametersClients"]["PATH_LENGTH"])
-    EXP_PARAMS_PAYLOAD = (
-        float(_PARAMS["parametersClients"]["EXP_PARAMS_PAYLOAD"]), None)
-
-    EXP_PARAMS_LOOPS = (
-        float(_PARAMS["parametersClients"]["EXP_PARAMS_LOOPS"]), None)
-    EXP_PARAMS_COVER = (
-        float(_PARAMS["parametersClients"]["EXP_PARAMS_COVER"]), None)
     EXP_PARAMS_DELAY = float(_PARAMS["parametersClients"]["EXP_PARAMS_DELAY"])
     NOISE_LENGTH = float(_PARAMS["parametersClients"]["NOISE_LENGTH"])
 
@@ -161,8 +154,6 @@ class LoopixClient(object):
 class LoopixMixNode(object):
     PATH_LENGTH = 3
     EXP_PARAMS_DELAY = (float(_PARAMS["parametersMixnodes"]["EXP_PARAMS_DELAY"]), None)
-    EXP_PARAMS_LOOPS = (float(_PARAMS["parametersMixnodes"]["EXP_PARAMS_LOOPS"]), None)
-    TAGED_HEARTBEATS = _PARAMS["parametersMixnodes"]["TAGED_HEARTBEATS"]
     NOISE_LENGTH = float(_PARAMS["parametersMixnodes"]["NOISE_LENGTH"])
 
     def __init__(self, host, port, name, privk, pubk, group=None):
