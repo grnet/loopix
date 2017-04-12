@@ -4,9 +4,7 @@ from core import LoopixClient, LoopixMixNode, LoopixProvider
 import supportFunctions as sf
 import time
 import json
-
-
-main_queue = PriorityQueue()
+from threading import Thread
 
 with open('config.json') as infile:
     _PARAMS = json.load(infile)
@@ -15,33 +13,38 @@ def schedule(delay):
     return datetime.datetime.now() + datetime.timedelta(delay)
 
 
-def enqueue(pqueue, delay, data):
+def enqueue(queue, delay, data):
     fire_time = schedule(delay)
     print "ENQUEUE %s %s" % (fire_time, data)
-    pqueue.put((fire_time, data))
+    queue.put((fire_time, data))
 
 
-def process_queue(pqueue, event_handler):
+def process_queue(event_queue):
+    pqueue = PriorityQueue()
+    timeout = 0
     while True:
-        element = event_handler.wait()
+        element = event_queue.get(block=True, timeout=timeout)
         handle_element(pqueue, element)
         while True:
             if pqueue.empty():
                 break
             elem = pqueue.get()
-            if not handle_element(pqueue, elem):
+            delta_secs = handle_element(pqueue, elem)
+            if delta_secs > 0:
+                timeout = delta_secs
                 break
 
 
 def handle_element(pqueue, element):
     (fire_time, data) = element
     now = datetime.datetime.now()
-    if fire_time <= now:
+    delta = fire_time - now
+    delta_secs = delta.total_seconds()
+    if delta_secs <= 0:
         print "SENDING %s to %s" % (now, data[1])
-        return True
     else:
         pqueue.put(elem)
-        return False
+    return delta_secs
 
 
 class MixNodeHandler(object):
@@ -49,7 +52,7 @@ class MixNodeHandler(object):
 
     def __init__(self, mixnode):
         self.mixnode = mixnode
-        self.priority_queue = PriorityQueue()
+        self.queue = Queue()
 
     def register_providers(self, providers):
         self.mixnode.providers = providers
@@ -57,17 +60,27 @@ class MixNodeHandler(object):
     def register_mixnodes(self, mixnodes):
         self.mixnode.mixnodes = mixnodes
 
+    def process_inbox(self, inbox):
+        while True:
+            message = inbox.get()
+            self.process_message(message)
+
     def process_message(self, message):
         flag, data = self.mixnode.process_message(message)
         if flag == "RELAY":
             delay, new_message, new_addr = data
-            enqueue(self.priority_queue, delay, (new_message, new_addr))
+            enqueue(self.queue, delay, (new_message, new_addr))
 
     def send_loop_messages(self):
         while True:
             interval = sf.sampleFromExponential(self.EXP_PARAMS_LOOPS)
             time.sleep(interval)
-            enqueue(self.priority_queue, 0, (message, new_addr))
+            enqueue(self.queue, 0, (message, new_addr))
+
+
+def launch(target, args=()):
+    t = Thread(target=target, args=args)
+    t.start()
 
 
 class ProviderHandler(MixNodeHandler):
@@ -79,11 +92,11 @@ class ProviderHandler(MixNodeHandler):
     def register_clients(self, clients):
         self.provider.clients = clients
 
-    def process_message(self, message):
+    def process_real_message(self, message):
         flag, data = self.provider.process_message(message)
         if flag == "RELAY":
             delay, new_message, new_addr = data
-            enqueue(self.priority_queue, delay, (new_message, new_addr))
+            enqueue(self.queue, delay, (new_message, new_addr))
         elif flag == "STORE":
             new_message, next_name = data
             recipient = self.provider.clients[name]
@@ -96,12 +109,12 @@ class ProviderHandler(MixNodeHandler):
         else:
             self.storage[key] = [value]
 
-    def handle_package(self, data):
+    def process_message(self, data):
         if data[:8] == "PULL_MSG":
             data = self.provider.get_user_messages(data[8:])
-            enqueue(self.priority_queue, 0, data)
+            enqueue(self.queue, 0, data)
         else:
-            self.process_message(data)
+            self.process_real_message(data)
 
 
 class ClientHandler(object):
@@ -118,8 +131,6 @@ class ClientHandler(object):
         self.client = client
         self.priority_queue = PriorityQueue()
         self.buffer_queue = Queue()
-        self.inbox = Queue()
-
 
     def register_providers(self, providers):
         self.client.providers = providers
@@ -130,9 +141,9 @@ class ClientHandler(object):
     def register_known_clients(self, known_clients):
         self.client.known_clients = known_clients
 
-    def read_mail(self):
-        while not self.inbox.empty():
-            message = self.inbox.pop()
+    def read_mail(self, inbox):
+        while True:
+            message = inbox.get()
             processed = self.process_message(message)
             print processed
 
