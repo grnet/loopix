@@ -182,6 +182,7 @@ class ClientHandler(object):
 
     def read_mail(self, inbox):
         while True:
+            print "READING INBOX"
             message = inbox.get()
             processed = self.process_message(message)
             print "User %s: READ MAIL" % self.client.name
@@ -206,7 +207,7 @@ class ClientHandler(object):
 
     def make_pull_request_stream(self):
         while True:
-            interval = 10
+            interval = 2
             time.sleep(interval)
             pull_message, next_addr = "PULL", (self.client.provider.host, self.client.provider.port)
             enqueue(self.queue, 0, (pull_message, next_addr))

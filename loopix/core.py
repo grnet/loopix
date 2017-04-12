@@ -146,7 +146,6 @@ class LoopixClient(object):
             return msg
         except Exception, e:
             print "[%s] > ERROR: Message reading error: %s" % (self.name, str(e))
-            #print data
 
 
 class LoopixMixNode(object):
@@ -165,7 +164,6 @@ class LoopixMixNode(object):
 
     def create_loop_message(self):
         print "CREATING MIX LOOP"
-        print self.EXP_PARAMS_DELAY
         path = takeMixNodesSequence(self.mixnodes.values())
         heartMsg = sf.generateRandomNoise(self.NOISE_LENGTH)
         header, body = makeSphinxPacket(
@@ -191,17 +189,16 @@ class LoopixMixNode(object):
         # routing_flag, meta_info = PFdecode(self.params, info)
         routing = PFdecode(self.params, info)
         #print "ROUTING", routing
-        routing_flag, meta_info = routing
-        next_addr, dropFlag, delay, next_name = meta_info
         if routing[0] == Relay_flag:
+            routing_flag, meta_info = routing
+            next_addr, dropFlag, delay, next_name = meta_info
             return self.handle_relay(header, body, meta_info)
         elif routing[0] == Dest_flag:
             dest, message = receive_forward(self.params, body)
-            print "[%s] > Message received" % self.name
             if dest[-1] != self.name:
                 raise Exception("Destionation did not match")
             if message.startswith('HT'):
-                print "[%s] > Heartbeat looped pack" % self.name
+                print "[%s] > HEARTBEAT RECEIVED BACK" % self.name
                 return "DEST", [message]
         else:
             print 'Flag not recognized'
