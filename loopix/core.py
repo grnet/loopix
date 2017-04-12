@@ -42,7 +42,7 @@ def makeSphinxPacket(params, exp_delay, receiver, path, message,
     return (header, body)
 
 
-def takePathSequence(mixnet):
+def takeMixNodesSequence(mixnet):
     """ Function takes a random path sequence build of active mixnodes. If the
     default length of the path is bigger that the number of available mixnodes,
     then all mixnodes are used as path.
@@ -108,7 +108,7 @@ class LoopixClient(object):
         randomMessage = sf.generateRandomNoise(self.NOISE_LENGTH)
         random_provider = random_client.provider
 
-        mixes = takePathSequence(self.mixnodes.values())
+        mixes = takeMixNodesSequence(self.mixnodes.values())
         path = [self.provider] + mixes + [random_provider]
         (header, body) = makeSphinxPacket(
             self.params, self.EXP_PARAMS_DELAY,
@@ -118,18 +118,20 @@ class LoopixClient(object):
         return (drop_message, next_addr)
 
     def create_loop_message(self):
-        mixes = takePathSequence(self.mixnodes.values())
+        mixes = takeMixNodesSequence(self.mixnodes.values())
         path = [self.provider] + mixes + [self.provider]
         heartMsg = sf.generateRandomNoise(self.NOISE_LENGTH)
+        
         (header, body) = makeSphinxPacket(
             self.params, self.EXP_PARAMS_DELAY,
             self, path, 'HT' + heartMsg, dropFlag=False)
+        
         loop_message = petlib.pack.encode((header, body))
         next_addr = (self.provider.host, self.provider.port)
         return (loop_message, next_addr)
 
     def create_actual_message(self, message, receiver):
-        mixers = takePathSequence(self.mixnodes.values())
+        mixers = takeMixNodesSequence(self.mixnodes.values())
         path = [self.provider] + mixers + [receiver.provider]
         (header, body) = makeSphinxPacket(
             self.params, self.EXP_PARAMS_DELAY,
@@ -161,7 +163,7 @@ class LoopixClient(object):
             return msg
         except Exception, e:
             print "[%s] > ERROR: Message reading error: %s" % (self.name, str(e))
-            print data
+            #print data
 
 
 class LoopixMixNode(object):
@@ -187,7 +189,7 @@ class LoopixMixNode(object):
         self.mixnodes = mixnodes
 
     def create_loop_message(self):
-        path = takePathSequence(self.mixnodes.values())
+        path = takeMixNodesSequence(self.mixnodes.values())
         heartMsg = sf.generateRandomNoise(self.NOISE_LENGTH)
         header, body = makeSphinxPacket(
             self.params, self.EXP_PARAMS_DELAY, self, path, 'HT' + heartMsg)
@@ -351,12 +353,14 @@ def check_loop_message(test_client, env):
     print "CREATE LOOP MESSAGE"
     test_provider = get_clients_provider(test_client, env)
 
-    pub_mix_path = takePathSequence(env.public_mixnodes.values())
+    pub_mix_path = takeMixNodesSequence(env.public_mixnodes.values())
     process_path = [test_provider] + env.mixnode_objects.values() + [test_provider]
+
 
     loop_message, next_addr = test_client.create_loop_message()
 
-    print test_client.provider
+    print test_client.name
+
     print [e.name for e in process_path]
     message = loop_message
     for entity in process_path:
@@ -364,6 +368,8 @@ def check_loop_message(test_client, env):
         print "Flag:", flag
         if flag == "RELAY":
             message = lst[1]
+        if flag == "STORE":
+            message = lst[0]
 
     test_client.process_message(message)
 
@@ -371,7 +377,7 @@ def check_loop_message(test_client, env):
 def check_drop_message(test_client, env):
     print "CREATE DROP MESSAGE"
     test_provider = get_clients_provider(test_client, env)
-    pub_mix_path = takePathSequence(env.public_mixnodes.values())
+    pub_mix_path = takeMixNodesSequence(env.public_mixnodes.values())
     random_client = test_client.selectRandomClient()
     drop_message, next_addr = test_client.create_drop_message(random_client)
     rand_prov_obj = env.provider_objects[random_client.provider.name]
