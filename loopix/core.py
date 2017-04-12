@@ -31,7 +31,7 @@ def makeSphinxPacket(params, exp_delay, receiver, path, message,
         else:
             delay = sf.sampleFromExponential((exp_delay, None))
         drop = dropFlag and i == path_length - 1
-        print node.host, node.port, drop, delay, node.name
+        #print "PACKING", node.host, node.port, drop, delay, node.name
         entry = Nenc([(node.host, node.port), drop, delay, node.name])
         nodes_routing.append(entry)
 
@@ -190,7 +190,7 @@ class LoopixMixNode(object):
         (tag, info, (header, body)) = peeledData
         # routing_flag, meta_info = PFdecode(self.params, info)
         routing = PFdecode(self.params, info)
-        print routing
+        #print "ROUTING", routing
         routing_flag, meta_info = routing
         next_addr, dropFlag, delay, next_name = meta_info
         if routing[0] == Relay_flag:
@@ -211,14 +211,6 @@ class LoopixMixNode(object):
 class LoopixProvider(LoopixMixNode):
     def __init__(self, *args, **kwargs):
         LoopixMixNode.__init__(self, *args, **kwargs)
-
-    def get_user_messages(self, name):
-        if name in self.storage:
-            messages = self.storage[name]
-            popped, rest = messages[:MAX_RETRIEVE], messages[MAX_RETRIEVE:]
-            self.storage[name] = rest
-            return popped
-        return []
 
     def handle_relay(self, header, body, meta_info):
         next_addr, dropFlag, delay, next_name = meta_info

@@ -3,7 +3,8 @@ from collections import OrderedDict, namedtuple
 from format3 import Mix, Provider, User
 from core import LoopixMixNode, LoopixProvider, LoopixClient, takeMixNodesSequence
 import random
-from networking import MixNodeHandler, ProviderHandler, ClientHandler, process_queue
+from networking import MixNodeHandler, ProviderHandler, ClientHandler, \
+    process_queue, ThreadSafeDict
 import petlib
 from Queue import Queue
 from threading import Thread
@@ -116,10 +117,12 @@ def generate_all_handlers(env):
 
 
 def make_inboxes(env):
-    INBOXES = {}
-    for entity in env.public_mixnodes.values() + env.public_providers.values()\
-        + env.public_clients.values():
-        INBOXES[(entity.host, entity.port)] = Queue()
+    INBOXES = ThreadSafeDict()
+    with INBOXES.lock() as d:
+        for entity in env.public_mixnodes.values()\
+            + env.public_providers.values()\
+            + env.public_clients.values():
+            d[(entity.host, entity.port)] = Queue()
     return INBOXES
 
 
@@ -135,27 +138,30 @@ def demo():
 
     for mhandler in handlers.mixnode_handlers.values():
         addr = mhandler.mixnode.host, mhandler.mixnode.port
-        inbox = INBOXES[addr]
+        with INBOXES.lock() as d:
+            inbox = d[addr]
         launch(mhandler.process_inbox, args=(inbox,))
         launch(mhandler.send_loop_messages)
-        launch(process_queue, args=(mhandler.queue, INBOXES))
+        launch(process_queue, args=(mhandler, INBOXES))
 
     for phandler in handlers.provider_handlers.values():
         addr = phandler.provider.host, phandler.provider.port
-        inbox = INBOXES[addr]
+        with INBOXES.lock() as d:
+            inbox = d[addr]
         launch(phandler.process_inbox, args=(inbox,))
         launch(phandler.send_loop_messages)
-        launch(process_queue, args=(phandler.queue, INBOXES))
+        launch(process_queue, args=(phandler, INBOXES))
 
     for chandler in handlers.client_handlers.values():
         addr = chandler.client.host, chandler.client.port
-        inbox = INBOXES[addr]
+        with INBOXES.lock() as d:
+            inbox = d[addr]
         launch(chandler.read_mail, args=(inbox,))
         launch(chandler.make_actual_message_stream)
         launch(chandler.make_loop_stream)
         launch(chandler.make_drop_stream)
         launch(chandler.make_pull_request_stream)
-        launch(process_queue, args=(chandler.queue, INBOXES))
+        launch(process_queue, args=(chandler, INBOXES))
 
 
 def check_loop_message(client_handler, env):
