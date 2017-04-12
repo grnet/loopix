@@ -92,14 +92,6 @@ class LoopixClient(object):
         self.params = SphinxParams(header_len=1024)
         self.buffer = Queue()
 
-    def register_providers(self, providers):
-        self.providers = providers
-
-    def register_mixnodes(self, mixnodes):
-        self.mixnodes = mixnodes
-
-    def register_known_clients(self, known_clients):
-        self.known_clients = known_clients
 
     def selectRandomClient(self):
         return random.choice(self.known_clients.values())
@@ -182,12 +174,6 @@ class LoopixMixNode(object):
         self.params = SphinxParams(header_len=1024)
         self.group = group
 
-    def register_providers(self, providers):
-        self.providers = providers
-
-    def register_mixnodes(self, mixnodes):
-        self.mixnodes = mixnodes
-
     def create_loop_message(self):
         path = takeMixNodesSequence(self.mixnodes.values())
         heartMsg = sf.generateRandomNoise(self.NOISE_LENGTH)
@@ -234,9 +220,6 @@ class LoopixProvider(LoopixMixNode):
     def __init__(self, *args, **kwargs):
         LoopixMixNode.__init__(self, *args, **kwargs)
         self.storage = {}
-
-    def register_clients(self, clients):
-        self.clients = clients
 
     def saveInStorage(self, key, value):
         if key in self.storage:
@@ -321,24 +304,10 @@ Env = namedtuple("Env",
                   "public_clients", "client_objects"])
 
 
-def generate_all():
+def generate_all_core():
     public_mixnodes, mixnode_objects = generate_mixnodes()
     public_providers, provider_objects = generate_providers()
     public_clients, client_objects = generate_clients(public_providers)
-
-    for name, client in client_objects.iteritems():
-        client.register_providers(public_providers)
-        client.register_mixnodes(public_mixnodes)
-        client.register_known_clients(public_clients)
-
-    for name, mixnode in mixnode_objects.iteritems():
-        mixnode.register_providers(public_providers)
-        mixnode.register_mixnodes(public_mixnodes)
-
-    for name, provider in provider_objects.iteritems():
-        provider.register_providers(public_providers)
-        provider.register_mixnodes(public_mixnodes)
-        provider.register_clients(public_clients)
 
     return Env(public_mixnodes, mixnode_objects,
                public_providers, provider_objects,
@@ -390,7 +359,7 @@ def check_drop_message(test_client, env):
             message = lst[1]
 
 def test():
-    env = generate_all()
+    env = generate_all_core()
     test_client = random.choice(env.client_objects.values())
     check_loop_message(test_client, env)
     check_drop_message(test_client, env)
