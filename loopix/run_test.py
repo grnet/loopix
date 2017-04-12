@@ -3,8 +3,11 @@ from collections import OrderedDict, namedtuple
 from format3 import Mix, Provider, User
 from core import LoopixMixNode, LoopixProvider, LoopixClient, takeMixNodesSequence
 import random
-from networking import MixNodeHandler, ProviderHandler, ClientHandler
+from networking import MixNodeHandler, ProviderHandler, ClientHandler, process_queue
 import petlib
+from Queue import Queue
+from threading import Thread
+
 
 def generate_key_pair():
     params = SphinxParams()
@@ -111,6 +114,48 @@ def generate_all_handlers(env):
     client_handlers = generate_client_handlers(env)
     return Handlers(mixnode_handlers, provider_handlers, client_handlers)
 
+
+def make_inboxes(env):
+    INBOXES = {}
+    for entity in env.public_mixnodes.values() + env.public_providers.values()\
+        + env.public_clients.values():
+        INBOXES[(entity.host, entity.port)] = Queue()
+    return INBOXES
+
+
+def launch(target, args=()):
+    t = Thread(target=target, args=args)
+    t.start()
+
+
+def demo():
+    env = generate_all_core()
+    handlers = generate_all_handlers(env)
+    INBOXES = make_inboxes(env)
+
+    for mhandler in handlers.mixnode_handlers.values():
+        addr = mhandler.mixnode.host, mhandler.mixnode.port
+        inbox = INBOXES[addr]
+        launch(mhandler.process_inbox, args=(inbox,))
+        launch(mhandler.send_loop_messages)
+        launch(process_queue, args=(mhandler.queue, INBOXES))
+
+    for phandler in handlers.provider_handlers.values():
+        addr = phandler.provider.host, phandler.provider.port
+        inbox = INBOXES[addr]
+        launch(phandler.process_inbox, args=(inbox,))
+        launch(phandler.send_loop_messages)
+        launch(process_queue, args=(phandler.queue, INBOXES))
+
+    for chandler in handlers.client_handlers.values():
+        addr = chandler.client.host, chandler.client.port
+        inbox = INBOXES[addr]
+        launch(chandler.read_mail, args=(inbox,))
+        launch(chandler.make_actual_message_stream)
+        launch(chandler.make_loop_stream)
+        launch(chandler.make_drop_stream)
+        launch(chandler.make_pull_request_stream)
+        launch(process_queue, args=(chandler.queue, INBOXES))
 
 
 def check_loop_message(client_handler, env):

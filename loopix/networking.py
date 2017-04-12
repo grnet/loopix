@@ -4,7 +4,6 @@ from core import LoopixClient, LoopixMixNode, LoopixProvider
 import supportFunctions as sf
 import time
 import json
-from threading import Thread
 
 with open('config.json') as infile:
     _PARAMS = json.load(infile)
@@ -19,31 +18,33 @@ def enqueue(queue, delay, data):
     queue.put((fire_time, data))
 
 
-def process_queue(event_queue):
+def process_queue(event_queue, inboxes):
     pqueue = PriorityQueue()
     timeout = 0
     while True:
         element = event_queue.get(block=True, timeout=timeout)
-        handle_element(pqueue, element)
+        handle_element(pqueue, element, inboxes)
         while True:
             if pqueue.empty():
                 break
             elem = pqueue.get()
-            delta_secs = handle_element(pqueue, elem)
+            delta_secs = handle_element(pqueue, elem, inboxes)
             if delta_secs > 0:
                 timeout = delta_secs
                 break
 
 
-def handle_element(pqueue, element):
+def handle_element(pqueue, element, inboxes):
     (fire_time, data) = element
+    message, addr = data
     now = datetime.datetime.now()
     delta = fire_time - now
     delta_secs = delta.total_seconds()
     if delta_secs <= 0:
-        print "SENDING %s to %s" % (now, data[1])
+        print "SENDING %s to %s" % (now, addr)
+        inboxes[addr].put(message)
     else:
-        pqueue.put(elem)
+        pqueue.put(element)
     return delta_secs
 
 
@@ -75,12 +76,8 @@ class MixNodeHandler(object):
         while True:
             interval = sf.sampleFromExponential(self.EXP_PARAMS_LOOPS)
             time.sleep(interval)
+            message, new_addr = self.mixnode.create_loop_message()
             enqueue(self.queue, 0, (message, new_addr))
-
-
-def launch(target, args=()):
-    t = Thread(target=target, args=args)
-    t.start()
 
 
 class ProviderHandler(MixNodeHandler):
@@ -99,9 +96,9 @@ class ProviderHandler(MixNodeHandler):
             enqueue(self.queue, delay, (new_message, new_addr))
         elif flag == "STORE":
             new_message, next_name = data
-            recipient = self.provider.clients[name]
+            recipient = self.provider.clients[next_name]
             new_addr = recipient.host, recipient.port
-            self.saveInStorage(name, (new_message, new_addr))
+            self.saveInStorage(next_name, (new_message, new_addr))
 
     def saveInStorage(self, key, value):
         if key in self.storage:
@@ -129,7 +126,7 @@ class ClientHandler(object):
 
     def __init__(self, client):
         self.client = client
-        self.priority_queue = PriorityQueue()
+        self.queue = Queue()
         self.buffer_queue = Queue()
 
     def register_providers(self, providers):
@@ -155,7 +152,7 @@ class ClientHandler(object):
             interval = sf.sampleFromExponential(self.EXP_PARAMS_LOOPS)
             time.sleep(interval)
             loop_message, next_addr = self.client.create_loop_message()
-            enqueue(self.priority_queue, 0, (loop_message, next_addr))
+            enqueue(self.queue, 0, (loop_message, next_addr))
 
     def make_drop_stream(self):
         while True:
@@ -163,18 +160,18 @@ class ClientHandler(object):
             time.sleep(interval)
             random_client = self.client.selectRandomClient()
             drop_message, next_addr = self.client.create_drop_message(random_client)
-            enqueue(self.priority_queue, 0, (drop_message, next_addr))
+            enqueue(self.queue, 0, (drop_message, next_addr))
 
     def make_pull_request_stream(self):
         while True:
             interval = 10
             time.sleep(interval)
             pull_message, next_addr = "PULL", (self.client.provider.host, self.client.provider.port)
-            enqueue(self.priority_queue, 0, (pull_message, next_addr))
+            enqueue(self.queue, 0, (pull_message, next_addr))
 
     def next_message(self):
-        if not self.buffer.empty():
-            return self.buffer.get()
+        if not self.buffer_queue.empty():
+            return self.buffer_queue.get()
         else:
             random_client = self.client.selectRandomClient()
             return self.client.create_drop_message(random_client)
@@ -188,7 +185,7 @@ class ClientHandler(object):
 
     def prepare_actual_message(self, message, receiver):
         data = self.client.create_actual_message(message, receiver)
-        self.client.buffer.put(data)
+        self.client.buffer_queue.put(data)
 
 
 
