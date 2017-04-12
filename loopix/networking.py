@@ -31,7 +31,7 @@ class ThreadSafeDict(object):
 
 
 def schedule(delay):
-    return datetime.datetime.now() + datetime.timedelta(delay)
+    return datetime.datetime.now() + datetime.timedelta(0, delay)
 
 
 def enqueue(queue, delay, data):
