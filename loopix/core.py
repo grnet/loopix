@@ -70,7 +70,6 @@ def takeMixNodesSequence(mixnet):
 class LoopixClient(object):
     PATH_LENGTH = int(_PARAMS["parametersClients"]["PATH_LENGTH"])
     EXP_PARAMS_DELAY = float(_PARAMS["parametersClients"]["EXP_PARAMS_DELAY"])
-    EXP_PARAMS_DELAY = 0.0001
     NOISE_LENGTH = float(_PARAMS["parametersClients"]["NOISE_LENGTH"])
 
     def __init__(self, host, port, name, provider, privk, pubk):

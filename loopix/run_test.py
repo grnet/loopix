@@ -176,7 +176,6 @@ def make_fake_real_traffic(env, client_handlers):
         
             packet = ch.client.create_actual_message(message, random_recipient)
             ch.buffer_queue.put(packet)
-            print "PUTTED INTO BUFFER"
         time.sleep(20)
 
 def check_loop_message(client_handler, env):
