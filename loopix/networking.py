@@ -5,6 +5,9 @@ import supportFunctions as sf
 import time
 import json
 
+
+main_queue = PriorityQueue()
+
 with open('config.json') as infile:
     _PARAMS = json.load(infile)
 

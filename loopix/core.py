@@ -349,5 +349,5 @@ def test():
     check_drop_message(test_client, env)
 
 
-# if __name__ == "__main__":
-#     test()
+#if __name__ == "__main__":
+#    test()
